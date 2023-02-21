@@ -1,0 +1,14 @@
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<body>
+<script type="module">
+  import {registerRoute, history} from "https://esm.run/grainbox"
+
+  registerRoute(document.body, "/one", () => import("./one.js"))
+  registerRoute(document.body, "/two", () => import("./two.js"))
+
+  history.push('/one')
+  setTimeout(() => {
+    history.push('/two')
+  }, 2000)
+</script>
+</body>

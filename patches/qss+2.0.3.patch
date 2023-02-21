@@ -1,0 +1,35 @@
+diff --git a/node_modules/qss/dist/qss.js b/node_modules/qss/dist/qss.js
+index 9763157..e9f142a 100644
+--- a/node_modules/qss/dist/qss.js
++++ b/node_modules/qss/dist/qss.js
+@@ -1,4 +1,4 @@
+-function encode(obj, pfx) {
++export function encode(obj, pfx) {
+ 	var k, i, tmp, str='';
+ 
+ 	for (k in obj) {
+@@ -19,14 +19,13 @@ function encode(obj, pfx) {
+ }
+ 
+ function toValue(mix) {
+-	if (!mix) return '';
+ 	var str = decodeURIComponent(mix);
+-	if (str === 'false') return false;
+ 	if (str === 'true') return true;
++	if (str === 'false') return false;
+ 	return (+str * 0 === 0) ? (+str) : str;
+ }
+ 
+-function decode(str) {
++export function decode(str) {
+ 	var tmp, k, out={}, arr=str.split('&');
+ 
+ 	while (tmp = arr.shift()) {
+@@ -41,6 +40,3 @@ function decode(str) {
+ 
+ 	return out;
+ }
+-
+-exports.decode = decode;
+-exports.encode = encode;
+\ No newline at end of file

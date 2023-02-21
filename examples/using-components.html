@@ -1,0 +1,29 @@
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<body>
+  <script type="module">
+    import {reactive, html} from 'https://esm.run/grainbox'
+
+    let count = reactive({
+      counter: 0
+    })
+
+    const View = reactive(() => html`<span>Count: ${count.counter}</span>`)
+
+    const App = () => html`
+      <div>
+        <h2>counter using reactive</h2>
+        <${View}/>
+        <button
+          onclick=${() => {
+            console.log('increment')
+            count.counter++
+          }}
+        >
+          Click
+        </button>
+      </div>
+    `
+
+    document.body.appendChild(App())
+  </script>
+</body>

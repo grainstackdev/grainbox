@@ -1,0 +1,25 @@
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<body>
+  <script type="module">
+    import {reactive} from 'https://esm.run/grainbox'
+
+    const valueSpan = document.getElementById('value')
+
+    const store = reactive({value: 0})
+    reactive(() => {
+      valueSpan.innerHTML = store.value.toString()
+    })
+
+    window.add = () => {
+      store.value++
+    }
+
+    window.sub = () => {
+      store.value--
+    }
+  </script>
+
+  <span id="value">0</span>
+  <button onclick="sub()">-</button>
+  <button onclick="add()">+</button>
+</body>

@@ -1,0 +1,99 @@
+{
+  "name": "grainbox",
+  "version": "0.1.31",
+  "license": "MIT",
+  "description": "A minimal reactivity solution sans compiling or bundling, allowing SPAs to be built without compilers, bundlers or even NPM.",
+  "keywords": [
+    "small",
+    "minimal",
+    "fine-grained",
+    "reactive",
+    "state management",
+    "frp",
+    "fp",
+    "functional",
+    "functional-reactive-programming",
+    "front-end",
+    "framework",
+    "vanilla",
+    "grain",
+    "grainstack"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/grainstackdev/grainbox.git"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "node": "./dist/esm/index.mjs",
+      "default": "./dist/cdn/index.mjs"
+    },
+    "./reactivity": {
+      "node": "./dist/esm/reactivity.mjs",
+      "default": "./dist/cdn/reactivity.mjs"
+    },
+    "./history": {
+      "node": "./dist/esm/history.mjs",
+      "default": "./dist/cdn/history.mjs"
+    },
+    "./routing": {
+      "node": "./dist/esm/routing.mjs",
+      "default": "./dist/cdn/routing.mjs"
+    },
+    "./hyperscript": {
+      "node": "./dist/esm/grainbox-hyperscript.mjs",
+      "default": "./dist/cdn/grainbox-hyperscript.mjs"
+    },
+    "./hyperscript.mjs": {
+      "node": "./dist/esm/grainbox-hyperscript.mjs",
+      "default": "./dist/cdn/grainbox-hyperscript.mjs"
+    },
+    "./html-tag": {
+      "node": "./dist/esm/html-tag.mjs",
+      "default": "./dist/cdn/html-tag.mjs"
+    },
+    "./*": {
+      "node": "./dist/esm/*.mjs",
+      "default": "./dist/cdn/*.mjs"
+    },
+    "./*.mjs": {
+      "node": "./dist/esm/*.mjs",
+      "default": "./dist/cdn/*.mjs"
+    }
+  },
+  "unpkg": "./dist/cdn/index.mjs",
+  "main": "./dist/esm/index.mjs",
+  "files": [
+    "./docs",
+    "./dist",
+    "./examples"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && mkdir dist && flow-remove-types src --out-dir dist/esm && flow-copy-source src dist/esm && npm run build-cdn && prettier --write dist",
+    "build-cdn": "cp -r dist/esm dist/cdn && rm dist/cdn/*.flow && node scripts/copy-node-modules.js && web-imports --glob 'dist/cdn/*.{js,mjs}' --prefix './node_modules/'",
+    "prepublishOnly": "npm run build",
+    "postinstall": "patch-package",
+    "readme": "git add . && git commit -m 'readme' && npm version patch && git push && npm publish"
+  },
+  "devDependencies": {
+    "flow-bin": "0.195.1",
+    "flow-copy-source": "^2.0.9",
+    "flow-remove-types": "^2.197.0",
+    "fs-extra": "^11.1.0",
+    "prettier": "^2.8.1",
+    "web-imports": "1.0.6"
+  },
+  "dependencies": {
+    "history-events": "^1.0.4",
+    "htm": "^3.1.1",
+    "html-element": "^2.3.1",
+    "patch-package": "^6.5.1",
+    "postinstall-postinstall": "^2.1.0",
+    "qss": "^2.0.3",
+    "regexparam": "^2.0.1"
+  },
+  "engines": {
+    "node": ">=16.17.1"
+  }
+}
