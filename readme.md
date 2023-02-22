@@ -1,6 +1,6 @@
 # grainbox
 
-> A minimal reactivity solution sans compiling or bundling, allowing SPAs to be built without compilers, bundlers or even NPM. (30 kB)
+> A fine-grained reactivity solution sans compiling or bundling, allowing SPAs to be built without compilers, bundlers or even NPM. (30 kB)
 
 There are multiple pieces needed to build an SPA, but at the core of `grainbox` is the reactivity:
 
