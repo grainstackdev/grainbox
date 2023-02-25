@@ -4,9 +4,7 @@ import { parse as regexparam } from 'regexparam'
 import { history } from './history.mjs'
 import { reactive } from './reactivity.mjs'
 
-export type Page = {
-  element: HTMLElement
-}
+export type Page = HTMLElement
 
 const routeRegistry = reactive({})
 type RegisterRoute = (
@@ -82,7 +80,7 @@ reactive(() => {
     while (root.lastElementChild) {
       root.removeChild(root.lastElementChild)
     }
-    root.appendChild(page.element)
+    root.appendChild(page)
     // page.onMount()
   })
 })

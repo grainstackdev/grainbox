@@ -24,29 +24,22 @@ This example will cause a web page to render with the word "send" displayed on t
 // one.js
 import {html} from "https://unpkg.com/grainbox";
 const element = html`<div>one</div>`
-export default {
-  element
-}
+export default element
 ```
 ```js
 // two.js
 import {html} from "https://unpkg.com/grainbox";
 const element = html`<div>two</div>`
-export default {
-  element
-}
+export default element
 ```
 
 ## Full API
 
 ```
-type Page = {
-  element: HTMLElement,
-}
 function registerRoute(
   root: HTMLElement, 
   path: string, 
-  callback: () => Promise<{ default: Page }>
+  callback: () => Promise<{ default: HTMLElement }>
 )
 ```
 
