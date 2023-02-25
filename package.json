@@ -1,6 +1,6 @@
 {
   "name": "grainbox",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "license": "MIT",
   "description": "A minimal reactivity solution sans compiling or bundling, allowing SPAs to be built without compilers, bundlers or even NPM.",
   "keywords": [
