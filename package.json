@@ -74,7 +74,6 @@
     "build": "rm -rf dist && mkdir dist && flow-remove-types src --out-dir dist/esm && flow-copy-source src dist/esm && npm run build-cdn && prettier --write dist",
     "build-cdn": "cp -r dist/esm dist/cdn && rm dist/cdn/*.flow && node scripts/copy-node-modules.js && web-imports --glob 'dist/cdn/*.{js,mjs}' --prefix './node_modules/'",
     "prepublishOnly": "npm run build",
-    "postinstall": "patch-package",
     "readme": "git add . && git commit -m 'readme' && npm version patch && git push && npm publish"
   },
   "devDependencies": {
@@ -89,9 +88,7 @@
     "history-events": "^1.0.4",
     "htm": "^3.1.1",
     "html-element": "^2.3.1",
-    "patch-package": "^6.5.1",
-    "postinstall-postinstall": "^2.1.0",
-    "qss": "^2.0.3",
+    "qss": "^3.0.0",
     "regexparam": "^2.0.1"
   },
   "engines": {
