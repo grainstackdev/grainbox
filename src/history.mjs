@@ -25,6 +25,25 @@ const push = (
   w.history.pushState(state, '', url)
 }
 
+const replace = (
+  path: string,
+  options?: ?{
+    search?: string,
+    state?: any,
+    hash?: string,
+  },
+) => {
+  const { search, state, hash } = options ?? {}
+  let url = path
+  if (search) {
+    url += qss.encode(search)
+  }
+  if (hash) {
+    url += `#${hash}`
+  }
+  w.history.replaceState(state, '', url)
+}
+
 export const history: {
   location: Location,
   push: (
@@ -37,8 +56,9 @@ export const history: {
     ...w.location,
   },
   push,
+  replace,
   clearSearch: () => {
-    push(w.location.pathname)
+    replace(w.location.pathname)
   },
 })
 
