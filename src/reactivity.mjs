@@ -52,6 +52,7 @@ function peek<T>(a: Array<T>): ?T {
 
 function isReactive(obj: any): Reactive<any> | null %checks {
   return typeof obj === 'function' &&
+    !obj?.__isBeam &&
     obj?.[secret] &&
     obj?._setShouldUpdate &&
     obj?._dependents
@@ -64,8 +65,8 @@ function setShouldUpdate(
   shouldUpdate: (prev: any, next: any) => boolean,
 ) {
   if (isReactive(obj)) {
-    const nobj = (obj: Reactive<any>)
-    nobj._setShouldUpdate(shouldUpdate)
+    const objR = (obj: Reactive<any>)
+    objR._setShouldUpdate(shouldUpdate)
   }
 }
 
@@ -123,9 +124,9 @@ export type Reactive<T> = T
 function reactive<T>(init: T, name?: ?string): Reactive<T> {
   // console.log('name', name)
 
-  const isN = isReactive(init)
-  if (isN) {
-    return isN
+  const isR = isReactive(init)
+  if (isR) {
+    return isR
   }
 
   const defaultFunction = () => {
@@ -137,7 +138,7 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
   const recompute: () => any =
     // $FlowFixMe
     typeof init === 'function' ? init : defaultFunction
-  const state = typeof init === 'object' ? init : defaultState
+  const state = typeof init === 'object' || init.__isProxy ? init : defaultState
   const observerRegistry = new WeakMap()
   const dependents: Array<CreationContext> = []
   const creations = []
@@ -167,14 +168,14 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
 
   // Register any observables used inside a computable.
   let cachedValue
-  const echoCache = () => {
+  const unboxCache = () => {
     // console.log('cachedValue', cachedValue)
     registerContextAsDependent()
     return cachedValue
   }
 
   // For printing a reactive function:
-  Object.defineProperty(echoCache, 'name', {value: name || 'reactive'})
+  Object.defineProperty(unboxCache, 'name', {value: name || 'reactive'})
 
   const createContext: CreationContext = {
     onChange: () => {
@@ -214,11 +215,25 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
 
   // A createContext is raised when
   creationContexts.push(createContext)
-  // console.log('creationContexts', creationContexts, init)
+  // console.log(name, 'creationContexts', [...creationContexts])
   // console.log('init', init)
   cachedValue = recompute() // todo the first time this runs, it needs to record any reactive creations.
   // console.warn('null out')
   creationContexts.pop()
+
+  function updateDependents() {
+    // console.log('dependents', dependents)
+    // todo
+    //  diallow setting within an observer.
+    //  eventually allow setting within an observer.
+    // console.log('dependents', dependents)
+    for (const ctx of dependents) {
+      // Whenever there is a change, notify dependents.
+      // todo: batch updates
+      //   Allow set to be called multiple times before callbacks are called.
+      ctx.onChange()
+    }
+  }
 
   function set(obj, prop, value) {
     // console.log('set', name, prop, obj, value)
@@ -230,24 +245,13 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
     if (shouldUpdate(currentValue, value)) {
       // $FlowFixMe
       state[prop] = value
-      // console.log('set', prop, value, dependents)
-
-      // todo
-      //  diallow setting within an observer.
-      //  eventually allow setting within an observer.
-      // console.log('dependents', dependents)
-      for (const ctx of dependents) {
-        // Whenever there is a change, notify dependents.
-        // todo: batch updates
-        //   Allow set to be called multiple times before callbacks are called.
-        ctx.onChange()
-      }
+      updateDependents()
     }
     return true
   }
 
   // $FlowFixMe
-  const proxy: Reactive<T> = new Proxy(echoCache, {
+  const proxy: Reactive<T> = new Proxy(unboxCache, {
     get(parent, prop) {
       registerContextAsDependent()
 
@@ -260,7 +264,7 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
         prop === Symbol.toStringTag ||
         prop === Symbol.toPrimitive
       ) {
-        return echoCache()
+        return unboxCache()
       }
       if (prop === '_setShouldUpdate') {
         return (func) => {
@@ -272,6 +276,36 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
       }
       if (prop === '_creationContext') {
         return createContext
+      }
+      if (prop === '__isProxy') {
+        return true
+      }
+      if (prop === '__isReactive') {
+        return true
+      }
+      if (parent().__isBeam) {
+        if (prop === '__resolve') {
+          // internally used when beam tries to resolve.
+          const beamResolve = state?.[prop]
+          return (value) => {
+            beamResolve(value)
+            updateDependents()
+          }
+        } else {
+          // state is a beam proxy.
+          const value = state?.[prop]
+          // value is:
+          //  - new reactive proxy when a new leaf is created
+          //  - unboxed value when leaf is resolved
+          if (value?.__isResolved) {
+            // new leaf
+            // it is wrapped with reactive,
+            return value().__value
+          } else {
+            // resolved
+            return value
+          }
+        }
       }
       // const arr = parent()
       // console.log('arr', arr)
@@ -326,6 +360,30 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
       return state?.[prop]
     },
     set,
+    apply(target, thisArg, args) {
+      if (args.length) {
+        // Passing args in allows alternative behavior besides unboxing.
+        // Normally, w empty args, reactive apply is used for:
+        //  - unboxing
+        //  - registering self as a listener to the outer reactive context.
+
+        if (init.__isBeam) {
+          // init is a beam proxy
+          registerContextAsDependent()
+          const value = init(...args)
+          if (!value.__isResolved) {
+            // value is a beam proxy, unboxed once.
+            // In general a beam proxy should never be exposed;
+            // only a reactive proxy or a resolved value.
+            return proxy // allows ability to chain listener registration.
+          } else {
+            // value is the resolved value, unboxed twice.
+            return value
+          }
+        }
+      }
+      return unboxCache()
+    }
   })
 
   const createCtx = peek(creationContexts)

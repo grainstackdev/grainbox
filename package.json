@@ -71,7 +71,7 @@
     "./examples"
   ],
   "scripts": {
-    "watch": "rebuild -w src --spawn 'npm run build' -o build",
+    "start": "rebuild -w src --spawn 'npm run build' -o build",
     "build": "rm -rf dist && mkdir dist && flow-remove-types src --out-dir dist/esm && flow-copy-source src dist/esm && npm run build-cdn && prettier --write dist",
     "build-cdn": "cp -r dist/esm dist/cdn && rm dist/cdn/*.flow && node scripts/copy-node-modules.js && web-imports --glob 'dist/cdn/*.{js,mjs}' --prefix './node_modules/'",
     "prepublishOnly": "npm run build",
