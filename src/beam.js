@@ -5,7 +5,7 @@ import {reactive} from './reactivity.mjs'
 type BeamConfig = {
   name: string,
   serverUrl: string,
-  enableLogger: boolean,
+  disableLogger: boolean,
   headers: {[string]: string}
 }
 
@@ -94,7 +94,6 @@ export function beam(config: BeamConfig): Beam {
       },
       apply(reflect: () => Beam, thisArg, args) {
         const prevBeamProxy = reflect()
-        // reflect is not really a proxy. It's the function wrapped by the proxy.
 
         // Examples of when this is called:
         // data.viewer({token: token1})
@@ -116,26 +115,6 @@ export function beam(config: BeamConfig): Beam {
       }
     })
 
-    // New problem:
-    // Now the beamProxy has traps for gets and applys, but
-    // reactive() needs to perform gets in order to work:
-
-    // obj?.[secret] &&
-    // obj?._setShouldUpdate &&
-    // obj?._dependents
-    // These can be skipped by checking for obj?._isBeamProxy
-
-    // And there is an apply to recompute
-    // To solve these, a beam proxy must detect when it is inside a reactive context.
-
-    // There is also the problem of getting the value out when the query finishes.
-    // This is solved by adding a flag so that the get trap returns the value instead
-    // of a proxy.
-
-    // This flag and detecting being inside reactive are similar mechanisms,
-    // avoiding proxy creation at certain times.
-
-    // return beamProxy
     const reactiveProxy = reactive(beamProxy, `reactive(beam(${propName}))`)
     // $FlowFixMe
     return reactiveProxy
@@ -204,7 +183,7 @@ async function sendGraphQLQuery(config: BeamConfig, query: any, variables: any):
   })
   const payload = await res.json()
 
-  if (config.enableLogger) {
+  if (!config.disableLogger) {
     if (config.name) {
       if (payload.data && !payload.errors) {
         console.groupCollapsed(`%cQuery`, `color: #489bfd; font-weight: bold;`, config.name)

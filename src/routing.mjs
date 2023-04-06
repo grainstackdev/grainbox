@@ -56,9 +56,9 @@ export function getUrlParams(): { ... } {
 let mountedRoute = null
 reactive(() => {
   // $FlowFixMe
-  history() // reactive
+  history() // history changes are reactive
 
-  const route = findRoute(history.location.pathname) // reactive
+  const route = findRoute(history.location.pathname) // route registry changes are reactive
   if (!route) {
     // todo: 404
     return
@@ -69,16 +69,25 @@ reactive(() => {
   }
   mountedRoute = route
 
-  const { cb, root } = route
+  const { cb: dynamicImport, root } = route
 
   // The route is a dynamic import.
-  cb().then((moduleExport) => {
+  dynamicImport().then((moduleExport) => {
     if (route !== mountedRoute) return
     const page: Page = moduleExport.default
     // root.innerHTML = page.html
     // console.log("page.html", page.html)
     while (root.lastElementChild) {
       root.removeChild(root.lastElementChild)
+    }
+    if (page.__isReactive) {
+      // Unboxing causes listener registration.
+      // However, the only things which should cause this function to recompute
+      // are history changes, and changes to the route registry.
+      // If a page/component were to cause this function to recompute,
+      // it would re-import, removeChild, and then appendChild
+      // which is slower than a single replaceWith.
+      console.error('A value boxed by reactive cannot be mounted. Try exporting the unboxed value instead. Use the "()" operator to unbox values.')
     }
     root.appendChild(page)
     // page.onMount()
