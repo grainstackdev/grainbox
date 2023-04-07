@@ -275,9 +275,7 @@ function context() {
       //there might be a better way to handle this...
       else if (isArray(l)) forEach(l, item)
       else if (isNode(l)) {
-        console.log('l', l)
         if (l?.__isBeam && !l?.__isResolved) {
-          console.log(l.toString())
           // treat like string:
           if (!e) parseClass('')
           else e.appendChild((r = document.createTextNode('')))
