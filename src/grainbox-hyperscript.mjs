@@ -260,7 +260,13 @@ function context() {
         })
       }
 
+      const isUnresolvedBeam = l?.__isBeam && !l?.__isResolved
+
       if (l == null);
+      else if (isUnresolvedBeam) {
+        if (!e) parseClass('')
+        else e.appendChild((r = document.createTextNode('')))
+      }
       else if ('string' === typeof l) {
         if (!e) parseClass(l)
         else e.appendChild((r = document.createTextNode(l)))
@@ -275,13 +281,7 @@ function context() {
       //there might be a better way to handle this...
       else if (isArray(l)) forEach(l, item)
       else if (isNode(l)) {
-        if (l?.__isBeam && !l?.__isResolved) {
-          // treat like string:
-          if (!e) parseClass('')
-          else e.appendChild((r = document.createTextNode('')))
-        } else {
-          e.appendChild((r = l))
-        }
+        e.appendChild((r = l))
       } else if (l instanceof Text) e.appendChild((r = l))
       else if ('object' === typeof l) {
         // l is object of props, where key is the prop name.

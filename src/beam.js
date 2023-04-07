@@ -287,7 +287,7 @@ function getType(selectionPath, schema) {
   for (const field of keywords) {
     parentType = typeMap[parentType][field]
 
-    if (typeof parentType === 'SCALAR') {
+    if (parentType === 'SCALAR') {
       break
     }
   }
