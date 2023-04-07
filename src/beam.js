@@ -80,6 +80,8 @@ export function beam(config: BeamConfig): Beam {
           return true
         } else if (prop === '__isBeam') {
           return true
+        } else if (prop === 'toString') {
+          return () => constructQuery()
         }
 
         if (prop === '__value' || __resolved) {

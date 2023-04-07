@@ -258,6 +258,9 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
       if (prop === secret) {
         return true
       }
+      if (prop === 'toString' && parent().__isBeam) {
+        return state?.toString
+      }
       if (
         prop === 'toString' ||
         prop === 'valueOf' ||
