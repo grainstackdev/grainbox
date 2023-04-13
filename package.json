@@ -84,7 +84,7 @@
     "fs-extra": "^11.1.0",
     "prettier": "^2.8.1",
     "rebuild-aio": "^1.1.9",
-    "web-imports": "1.0.6"
+    "web-imports": "3.1.13"
   },
   "dependencies": {
     "history-events": "^1.0.4",

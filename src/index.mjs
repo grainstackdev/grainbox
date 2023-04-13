@@ -5,6 +5,7 @@ import { registerRoute as _registerRoute } from './routing.mjs'
 import { default as _html } from './html-tag.mjs'
 import { default as _h } from './grainbox-hyperscript.mjs'
 import { beam as _beam } from './beam.js'
+import { ref as _ref } from './ref.js'
 
 export const reactive = _reactive
 export const history = _history
@@ -12,6 +13,7 @@ export const registerRoute = _registerRoute
 export const html = _html
 export const h = _h
 export const beam = _beam
+export const ref = _ref
 
 export default {
   reactive,
@@ -19,5 +21,6 @@ export default {
   registerRoute,
   html,
   h,
-  beam
+  beam,
+  ref
 }

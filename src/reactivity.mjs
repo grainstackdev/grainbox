@@ -187,11 +187,23 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
         isEl(nextValue) &&
         !!nextValue?.replaceWith &&
         isEl(prevValue) &&
-        !!prevValue?.replaceWith
+        !!prevValue?.replaceWith &&
+        nextValue !== prevValue // See ref proxy
       ) {
-        // .replaceWith is how fine grained page updates happen.
-        // console.log('replaceWith')
+        // .replaceWith is how page updates happen.
+        // If a function which returns an HTML element is passed into reactive,
+        // Then that function's return type should never change, always returning
+        // an HTML element.
+        // On recomputes, the previous value will be replaced with the new.
+        //
+        // In cases where the function return HTML, it is called a builder.
+
+        // console.log('replaceWith', name)
         prevValue.replaceWith(nextValue)
+
+        // Reactive builders do not propagate their reactivity.
+        // Instead, the DOM is the final destination of reactivity.
+        return
       }
 
       if (shouldUpdate(prevValue, nextValue)) {
@@ -273,6 +285,9 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
         return (func) => {
           shouldUpdate = func
         }
+      }
+      if (prop === '__updateDependents') {
+        return updateDependents
       }
       if (prop === '_dependents') {
         return dependents
@@ -383,7 +398,12 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
             // value is the resolved value, unboxed twice.
             return value
           }
+        } else if (init.__isRef) {
+          return cachedValue
         }
+      }
+      if (init.__isRef) {
+        return unboxCache()()
       }
       return unboxCache()
     }

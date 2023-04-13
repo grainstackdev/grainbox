@@ -205,6 +205,15 @@ function context() {
     // args = [props, assembledChildren]
     var args = [].slice.call(arguments),
       e = null
+
+    const ref = args[1]?.ref?.({noRegister: true})
+    const hasRefProxy = ref?.__isRef && ref?.__isResolved
+    if (hasRefProxy) {
+      // update existing element in place instead of creating a new one.
+      e = ref
+      return e
+    }
+
     function item(l) {
       var r
       function parseClass(string) {
@@ -286,12 +295,29 @@ function context() {
       else if ('object' === typeof l) {
         // l is object of props, where key is the prop name.
         for (var k in l) {
-          // console.log('l[k]', l[k], typeof l[k])
-          if ('function' === typeof l[k]) {
+          if (k.toLowerCase() === 'ref') {
+            function r(ty, li, op) {
+              console.log('addEventListener')
+              e.addEventListener(ty, li, op)
+              cleanupFuncs.push(function () {
+                console.log('removeEventListener')
+                e.removeEventListener(
+                  ty,
+                  li,
+                  op,
+                )
+              })
+            }
+
+            const ref = l[k]({noRegister: true})
+            if (ref?.__isProxy && ref?.__isRef) {
+              ref(e, r)
+            } else if ('function' === typeof l[k]) {
+              l[k](e)
+            }
+          } else if ('function' === typeof l[k]) {
             if (lifecyleMethods.includes(k.toLowerCase())) {
               // lifecycle methods already handled
-            } else if (k.toLowerCase() === 'ref') {
-              l[k](e)
             } else if (/^on\w+/.test(k)) {
               ;(function (k, l) {
                 // capture k, l in the closure
@@ -387,6 +413,7 @@ function context() {
   }
 
   h.cleanup = function () {
+    console.log('h.cleanup')
     for (var i = 0; i < cleanupFuncs.length; i++) {
       cleanupFuncs[i]()
     }
