@@ -112,6 +112,11 @@ function isPrimitive(test: any): boolean {
   return test !== Object(test)
 }
 
+let constraintRecorder
+function setConstraintRecorder(value) {
+  constraintRecorder = value
+}
+
 // export type Reactive<T> = {
 //   (): T,
 //   _setShouldUpdate: (prev: any, next: any) => boolean,
@@ -143,9 +148,13 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
   const dependents: Array<CreationContext> = []
   const creations = []
   let shouldUpdate = (prev, next) => prev !== next
+  let setterLocked = false
 
   const registerContextAsDependent = () => {
     // console.log('registerContextAsDependent', name)
+    if (constraintRecorder) {
+      return
+    }
     if (recomputeContexts.length) {
       // When running as a recompute, do not register
       return
@@ -195,15 +204,13 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
         // Then that function's return type should never change, always returning
         // an HTML element.
         // On recomputes, the previous value will be replaced with the new.
-        //
-        // In cases where the function return HTML, it is called a builder.
-
-        // console.log('replaceWith', name)
+        // In cases where the function returns HTML, it is called a builder.
         prevValue.replaceWith(nextValue)
 
         // Reactive builders do not propagate their reactivity.
         // Instead, the DOM is the final destination of reactivity.
-        return
+        cachedValue = nextValue
+        return nextValue
       }
 
       if (shouldUpdate(prevValue, nextValue)) {
@@ -248,9 +255,18 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
   }
 
   function set(obj, prop, value) {
-    // console.log('set', name, prop, obj, value)
     // $FlowFixMe
     const currentValue = state[prop]
+
+    if (constraintRecorder) {
+      constraintRecorder(proxy, prop, currentValue)
+    }
+    if (setterLocked) {
+      return true
+    }
+
+    // console.log('set', name, prop, obj, value)
+
     // console.log('currentValue', currentValue)
     // console.log('shouldUpdate(currentValue, value)', shouldUpdate(currentValue, value))
 
@@ -400,6 +416,15 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
           }
         } else if (init.__isRef) {
           return cachedValue
+        } else if (args.length === 1 && typeof args[0] === 'object') {
+          // This is used for the constraint system.
+          // Passing in ({lock: true}) or ({unlock: true}) does not unbox,
+          // but instead locks or unlocks the ability to set.
+          if (args[0]?.lock) {
+            setterLocked = true
+          } else if (args[0]?.unlock) {
+            setterLocked = false
+          }
         }
       }
       if (init.__isRef) {
@@ -449,4 +474,5 @@ export {
   hasDependent,
   getDependents,
   getCreationContext,
+  setConstraintRecorder,
 }

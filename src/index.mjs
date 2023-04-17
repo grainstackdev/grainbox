@@ -6,6 +6,7 @@ import { default as _html } from './html-tag.mjs'
 import { default as _h } from './grainbox-hyperscript.mjs'
 import { beam as _beam } from './beam.js'
 import { ref as _ref } from './ref.js'
+import {constraint as _constraint} from './constraint.js'
 
 export const reactive = _reactive
 export const history = _history
@@ -14,6 +15,7 @@ export const html = _html
 export const h = _h
 export const beam = _beam
 export const ref = _ref
+export const constraint = _constraint
 
 export default {
   reactive,
@@ -22,5 +24,6 @@ export default {
   html,
   h,
   beam,
-  ref
+  ref,
+  constraint
 }
