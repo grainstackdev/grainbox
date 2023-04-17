@@ -29,7 +29,6 @@ export function constraint(predicate, setter, unsetter) {
     }
   }
   const restore = () => {
-    console.log('cleanupCommands', cleanupCommands)
     for (const command of cleanupCommands) {
       command[0][command[1]] = command[2]
     }

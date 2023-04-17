@@ -52,10 +52,10 @@ function peek<T>(a: Array<T>): ?T {
 
 function isReactive(obj: any): Reactive<any> | null %checks {
   return typeof obj === 'function' &&
-    !obj?.__isBeam &&
-    obj?.[secret] &&
-    obj?._setShouldUpdate &&
-    obj?._dependents
+  !obj?.__isBeam &&
+  obj?.[secret] &&
+  obj?._setShouldUpdate &&
+  obj?._dependents
     ? obj
     : null
 }

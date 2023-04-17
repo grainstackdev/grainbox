@@ -24,10 +24,12 @@ export function ref() {
     element = _element
 
     if (element?.tagName === 'INPUT' && element?.type === 'text') {
-      registerEvent('input', (event) => {
-        console.log('event', event)
-        // console.log('reactiveProxy.__updateDependents', reactiveProxy.__updateDependents)
+      registerEvent('input', (e) => {
+        const activeElement = document.activeElement
         reactiveProxy.__updateDependents()
+        // replaceWith can cause focus to be lost even when the focused element
+        // is a child of nextValue and unchanged.
+        activeElement?.focus()
       })
     }
 
