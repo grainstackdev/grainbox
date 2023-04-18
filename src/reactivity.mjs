@@ -117,6 +117,20 @@ function setConstraintRecorder(value) {
   constraintRecorder = value
 }
 
+const debounce = (func, timeout) => {
+  let timer
+
+  return (...args) => {
+    const deferred = () => {
+      timer = null;
+      func(...args);
+    };
+
+    timer && clearTimeout(timer)
+    timer = setTimeout(deferred, timeout)
+  };
+}
+
 // export type Reactive<T> = {
 //   (): T,
 //   _setShouldUpdate: (prev: any, next: any) => boolean,
@@ -125,9 +139,13 @@ function setConstraintRecorder(value) {
 //   ...T
 // }
 export type Reactive<T> = T
+type Extra = string | {debounce: number}
 
-function reactive<T>(init: T, name?: ?string): Reactive<T> {
+function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
+  const name = typeof extra === 'string' ? extra : 'reactive'
   // console.log('name', name)
+
+  const debounceSettings = extra?.debounce ? extra : null
 
   const isR = isReactive(init)
   if (isR) {
@@ -184,47 +202,46 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
   }
 
   // For printing a reactive function:
-  Object.defineProperty(unboxCache, 'name', {value: name || 'reactive'})
+  Object.defineProperty(unboxCache, 'name', {value: name})
+
+  let onChange = () => {
+    recomputeContexts.push({ index: 0, creations })
+    const nextValue: any = recompute()
+    recomputeContexts.pop()
+    const prevValue = cachedValue // setting should not causes registrations as dependent.
+    cachedValue = nextValue
+    if (
+      isEl(nextValue) &&
+      !!nextValue?.replaceWith &&
+      isEl(prevValue) &&
+      !!prevValue?.replaceWith &&
+      nextValue !== prevValue // See ref proxy
+    ) {
+      // .replaceWith is how page updates happen.
+      // If a function which returns an HTML element is passed into reactive,
+      // Then that function's return type should never change, always returning
+      // an HTML element.
+      // On recomputes, the previous value will be replaced with the new.
+      // In cases where the function returns HTML, it is called a builder.
+      prevValue.replaceWith(nextValue)
+
+      // Reactive builders do not propagate their reactivity.
+      // Instead, the DOM is the final destination of reactivity.
+      return nextValue
+    }
+
+    if (shouldUpdate(prevValue, nextValue)) {
+      updateDependents()
+    }
+
+    return nextValue
+  }
+  if (debounceSettings) {
+    onChange = debounce(onChange, debounceSettings.debounce)
+  }
 
   const createContext: CreationContext = {
-    onChange: () => {
-      recomputeContexts.push({ index: 0, creations })
-      const nextValue: any = recompute()
-      recomputeContexts.pop()
-      const prevValue = cachedValue // setting should not causes registrations as dependent.
-      if (
-        isEl(nextValue) &&
-        !!nextValue?.replaceWith &&
-        isEl(prevValue) &&
-        !!prevValue?.replaceWith &&
-        nextValue !== prevValue // See ref proxy
-      ) {
-        // .replaceWith is how page updates happen.
-        // If a function which returns an HTML element is passed into reactive,
-        // Then that function's return type should never change, always returning
-        // an HTML element.
-        // On recomputes, the previous value will be replaced with the new.
-        // In cases where the function returns HTML, it is called a builder.
-        prevValue.replaceWith(nextValue)
-
-        // Reactive builders do not propagate their reactivity.
-        // Instead, the DOM is the final destination of reactivity.
-        cachedValue = nextValue
-        return nextValue
-      }
-
-      if (shouldUpdate(prevValue, nextValue)) {
-        cachedValue = nextValue
-        for (const ctx of dependents) {
-          // Whenever there is a change, notify dependents.
-          // todo: batch updates
-          //   Allow set to be called multiple times before callbacks are called.
-          ctx.onChange()
-        }
-      }
-
-      return nextValue
-    },
+    onChange,
     registerCreation: (reactiveObj) => {
       creations.push(reactiveObj)
     },
@@ -243,8 +260,8 @@ function reactive<T>(init: T, name?: ?string): Reactive<T> {
   function updateDependents() {
     // console.log('dependents', dependents)
     // todo
-    //  diallow setting within an observer.
-    //  eventually allow setting within an observer.
+    //   disallow setting within an observer.
+    //   eventually allow setting within an observer.
     // console.log('dependents', dependents)
     for (const ctx of dependents) {
       // Whenever there is a change, notify dependents.
