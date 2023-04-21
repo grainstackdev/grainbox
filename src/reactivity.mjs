@@ -117,6 +117,11 @@ function setConstraintRecorder(value) {
   constraintRecorder = value
 }
 
+let constraintTrace
+function setConstraintTrace(value) {
+  constraintTrace = value
+}
+
 const debounce = (func, timeout) => {
   let timer
 
@@ -152,16 +157,16 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     return isR
   }
 
+  const defaultState = isPrimitive(init) ? Object(init) : {}
   const defaultFunction = () => {
     // return isPrimitive(init) ? init : null
-    return init
+    return defaultState.valueOf()
   }
-  const defaultState = isPrimitive(init) ? { value: init } : {}
-
   const recompute: () => any =
     // $FlowFixMe
     typeof init === 'function' ? init : defaultFunction
-  const state = typeof init === 'object' || init.__isProxy ? init : defaultState
+  let state = typeof init === 'object' || init.__isProxy ? init : defaultState
+
   const observerRegistry = new WeakMap()
   const dependents: Array<CreationContext> = []
   const creations = []
@@ -271,25 +276,63 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     }
   }
 
-  function set(obj, prop, value) {
-    // $FlowFixMe
-    const currentValue = state[prop]
+  let lastLockingStack
+  const pendingSets = []
+  let pendingSetTimeout
+  const reportPendingSets = () => {
+    pendingSetTimeout = setTimeout(() => {
+      pendingSetTimeout = null
+      if (pendingSets.length) {
+        // If there are any remaining pending sets still unapplied on the next frame,
+        // then it means there are conflicting constraints enabled.
+        console.group(`%cTwo or more constraints are conflicting: `, 'color: #ea2929;')
+        console.error(lastLockingStack)
+        for (const ps of pendingSets) {
+          console.error(ps[1])
+        }
+        console.groupEnd()
+      }
+    })
+  }
 
-    if (constraintRecorder) {
+  function set(obj, prop, value) {
+    // Performing a set should not cause dependency registration
+
+    // $FlowFixMe
+    const currentValue = isPrimitive(init) ? state.valueOf() : state[prop]
+    const updateNeeded = shouldUpdate(currentValue, value)
+
+    if (constraintRecorder && !setterLocked) {
       constraintRecorder(proxy, prop, currentValue)
     }
     if (setterLocked) {
+      // todo:
+      //  If locked, record this set as a pending operation.
+      //  If during this frame the proxy is unlocked, then the pending set will by applied.
+      if (constraintRecorder && updateNeeded) {
+        const setConstraintRecorder = constraintRecorder
+        const trace = constraintTrace()
+        pendingSets.push([() => {
+          proxy[prop] = value
+          proxy(() => ({lock: true, trace}))
+          // a reference to constraintRecorder must survive even after attempted locking.
+          setConstraintRecorder(proxy, prop, currentValue)
+        }, trace])
+        reportPendingSets()
+      }
       return true
     }
 
-    // console.log('set', name, prop, obj, value)
-
-    // console.log('currentValue', currentValue)
-    // console.log('shouldUpdate(currentValue, value)', shouldUpdate(currentValue, value))
-
-    if (shouldUpdate(currentValue, value)) {
+    if (updateNeeded) {
       // $FlowFixMe
-      state[prop] = value
+      if (isPrimitive(init)) {
+        state = Object(value)
+        cachedValue = state.valueOf()
+      } else {
+        state[prop] = value
+        cachedValue = state
+      }
+
       updateDependents()
     }
     return true
@@ -431,17 +474,49 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
             // value is the resolved value, unboxed twice.
             return value
           }
-        } else if (init.__isRef) {
-          return cachedValue
-        } else if (args.length === 1 && typeof args[0] === 'object') {
-          // This is used for the constraint system.
-          // Passing in ({lock: true}) or ({unlock: true}) does not unbox,
-          // but instead locks or unlocks the ability to set.
-          if (args[0]?.lock) {
-            setterLocked = true
-          } else if (args[0]?.unlock) {
-            setterLocked = false
+        } else if (args.length === 1 && typeof args[0] === 'function') {
+          // Passing a function into an apply is a different kind of operation
+          // than passing in a non-function value.
+          // This is currently only used for the constraint system.
+          // Passing in (() => {lock: true}) or (() => {unlock: true})
+          // to lock or unlock the proxy.
+
+          const specialArgs = args[0]()
+          if (!!specialArgs && typeof specialArgs === 'object') {
+            if (specialArgs?.lock) {
+              if (!setterLocked) {
+                lastLockingStack = specialArgs.trace
+              }
+              setterLocked = true
+            } else if (specialArgs?.unlock) {
+              const prevSetterLocked = setterLocked
+              setterLocked = false
+              if (prevSetterLocked && pendingSets.length) {
+                // todo:
+                //  if it was locked previously,
+                //  then attempt to apply any pending set.
+                const ps = pendingSets.shift()
+                ps[0]()
+              }
+            } else if (specialArgs?.noRegister) {
+              return cachedValue
+            }
           }
+          return
+        } else if (args.length === 1 && typeof args[0] !== 'function') {
+          // Passing in a non-function value will set.
+
+          // If it is primitive:
+          if (isPrimitive(args[0])) {
+            // prop name is set to _ as a dummy name
+            proxy._ = args[0]
+          } else {
+            // An object was passed in
+            for (const key of Object.keys(args[0])) {
+              proxy[key] = args[0][key]
+            }
+          }
+          return
         }
       }
       if (init.__isRef) {
@@ -492,4 +567,5 @@ export {
   getDependents,
   getCreationContext,
   setConstraintRecorder,
+  setConstraintTrace
 }

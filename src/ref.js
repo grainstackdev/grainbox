@@ -34,7 +34,6 @@ export function ref() {
     }
 
     // refProxy must be returned for reactive initialization.
-    console.log('onRef')
     return element
   }
 

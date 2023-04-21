@@ -24,6 +24,7 @@ export const registerRoute: RegisterRoute = (root, path, cb) => {
 function findRoute(pathname: string) {
   // $FlowFixMe
   const registry = routeRegistry()
+  console.log('registry', registry)
   for (const path of Object.keys(registry)) {
     const route = registry[path]
 

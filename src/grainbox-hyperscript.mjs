@@ -206,11 +206,11 @@ function context() {
     var args = [].slice.call(arguments),
       e = null
 
-    const ref = args[1]?.ref?.({noRegister: true})
+    const ref = args[1]?.ref
     const hasRefProxy = ref?.__isRef && ref?.__isResolved
     if (hasRefProxy) {
       // update existing element in place instead of creating a new one.
-      e = ref
+      e = ref(() => ({noRegister: true}))()
       return e
     }
 
@@ -295,12 +295,14 @@ function context() {
       else if ('object' === typeof l) {
         // l is object of props, where key is the prop name.
         for (var k in l) {
-          if (k.toLowerCase() === 'ref') {
+          // an unresolved proxy passed into ref -> register the ref
+          // unresolved proxy into non-ref prop -> ignore prop
+          // resolved proxy or non-proxy variable -> handle prop as usual
+          const isUnresolvedRefProxy = l[k]?.__isProxy && l[k]?.__isRef && !l[k]?.__isResolved
+          if (k.toLowerCase() === 'ref' && (isUnresolvedRefProxy || 'function' === typeof l[k])) {
             function r(ty, li, op) {
-              console.log('addEventListener')
               e.addEventListener(ty, li, op)
               cleanupFuncs.push(function () {
-                console.log('removeEventListener')
                 e.removeEventListener(
                   ty,
                   li,
@@ -309,85 +311,89 @@ function context() {
               })
             }
 
-            const ref = l[k]({noRegister: true})
-            if (ref?.__isProxy && ref?.__isRef) {
+            if (isUnresolvedRefProxy) {
+              const ref = l[k](() => ({noRegister: true}))
               ref(e, r)
             } else if ('function' === typeof l[k]) {
               l[k](e)
             }
-          } else if ('function' === typeof l[k]) {
-            if (lifecyleMethods.includes(k.toLowerCase())) {
-              // lifecycle methods already handled
-            } else if (/^on\w+/.test(k)) {
-              ;(function (k, l) {
-                // capture k, l in the closure
-                if (e.addEventListener) {
-                  // console.log('e', e, l, l[k])
-                  e.addEventListener(k.substring(2).toLowerCase(), l[k], false)
-                  cleanupFuncs.push(function () {
-                    e.removeEventListener(
-                      k.substring(2).toLowerCase(),
-                      l[k],
-                      false,
-                    )
-                  })
-                } else {
-                  e.attachEvent(k, l[k])
-                  cleanupFuncs.push(function () {
-                    e.detachEvent(k, l[k])
-                  })
-                }
-              })(k, l)
-            } else {
-              // observable
-              e[k] = l[k]()
-              cleanupFuncs.push(
-                l[k](function (v) {
-                  e[k] = v
-                }),
-              )
-            }
-          } else if (k === 'style') {
-            if ('string' === typeof l[k]) {
-              e.style.cssText = l[k]
-            } else {
-              for (var s in l[k])
-                (function (s, v) {
-                  if ('function' === typeof v) {
-                    // observable
-                    e.style.setProperty(s, v())
-                    cleanupFuncs.push(
-                      v(function (val) {
-                        e.style.setProperty(s, val)
-                      }),
-                    )
-                  } else var match = l[k][s].match(/(.*)\W+!important\W*$/)
-                  if (match) {
-                    e.style.setProperty(s, match[1], 'important')
+          } else if (!l[k]?.__isProxy) {
+            // If proxy, register dependency:
+            const p = l[k]?.__isProxy ? l[k]() : l[k]
+            if ('function' === typeof p) {
+              if (lifecyleMethods.includes(k.toLowerCase())) {
+                // lifecycle methods already handled
+              } else if (/^on\w+/.test(k)) {
+                ;(function (k, l) {
+                  // capture k, l in the closure
+                  if (e.addEventListener) {
+                    // console.log('e', e, l, p)
+                    e.addEventListener(k.substring(2).toLowerCase(), p, false)
+                    cleanupFuncs.push(function () {
+                      e.removeEventListener(
+                        k.substring(2).toLowerCase(),
+                        p,
+                        false,
+                      )
+                    })
                   } else {
-                    e.style.setProperty(s, l[k][s])
+                    e.attachEvent(k, p)
+                    cleanupFuncs.push(function () {
+                      e.detachEvent(k, p)
+                    })
                   }
-                })(s, l[k][s])
+                })(k, l)
+              } else {
+                // observable
+                e[k] = p()
+                cleanupFuncs.push(
+                  p(function (v) {
+                    e[k] = v
+                  }),
+                )
+              }
+            } else if (k === 'style') {
+              if ('string' === typeof p) {
+                e.style.cssText = p
+              } else {
+                for (var s in p)
+                  (function (s, v) {
+                    if ('function' === typeof v) {
+                      // observable
+                      e.style.setProperty(s, v())
+                      cleanupFuncs.push(
+                        v(function (val) {
+                          e.style.setProperty(s, val)
+                        }),
+                      )
+                    } else var match = p[s].match(/(.*)\W+!important\W*$/)
+                    if (match) {
+                      e.style.setProperty(s, match[1], 'important')
+                    } else {
+                      e.style.setProperty(s, p[s])
+                    }
+                  })(s, p[s])
+              }
+            } else if (k === 'attrs') {
+              for (var v in p) {
+                e.setAttribute(v, p[v])
+              }
+            } else if (
+              k.substr(0, 5) === 'data-' ||
+              k === 'disabled' ||
+              k === 'checked'
+            ) {
+              if (p !== undefined) {
+                e.setAttribute(k, p)
+              }
+            } else if (k === 'class') {
+              e.className = p
+            } else if (p === undefined || p === null) {
+              console.warn('undefined value for prop', e, k)
+            } else {
+              // console.log('e', e, k, l)
+              e[k] = p
             }
-          } else if (k === 'attrs') {
-            for (var v in l[k]) {
-              e.setAttribute(v, l[k][v])
-            }
-          } else if (
-            k.substr(0, 5) === 'data-' ||
-            k === 'disabled' ||
-            k === 'checked'
-          ) {
-            if (l[k] !== undefined) {
-              e.setAttribute(k, l[k])
-            }
-          } else if (k === 'class') {
-            e.className = l[k]
-          } else if (l[k] === undefined || l[k] === null) {
-            console.warn('undefined value for prop', e, k)
-          } else {
-            // console.log('e', e, k, l)
-            e[k] = l[k]
           }
         }
       } else if ('function' === typeof l) {
