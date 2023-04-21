@@ -149,6 +149,7 @@ type Extra = string | {debounce: number}
 function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   const name = typeof extra === 'string' ? extra : 'reactive'
   // console.log('name', name)
+  const place = new Error(name || 'Reactive')
 
   const debounceSettings = extra?.debounce ? extra : null
 
@@ -174,7 +175,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   let setterLocked = false
 
   const registerContextAsDependent = () => {
-    // console.log('registerContextAsDependent', name)
+    // console.log('registerContextAsDependent', name, new Error('as'))
     if (constraintRecorder) {
       return
     }
@@ -210,6 +211,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   Object.defineProperty(unboxCache, 'name', {value: name})
 
   let onChange = () => {
+    // console.log('onChange in', name)
     recomputeContexts.push({ index: 0, creations })
     const nextValue: any = recompute()
     recomputeContexts.pop()
@@ -272,6 +274,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       // Whenever there is a change, notify dependents.
       // todo: batch updates
       //   Allow set to be called multiple times before callbacks are called.
+      // console.log('calling dep from', name, place)
       ctx.onChange()
     }
   }
@@ -340,13 +343,20 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
 
   // $FlowFixMe
   const proxy: Reactive<T> = new Proxy(unboxCache, {
-    get(parent, prop) {
-      registerContextAsDependent()
+    get(unboxCache, prop) {
+      if (
+        prop !== '__isProxy' &&
+        prop !== '__isRef' &&
+        prop !== '__isBeam' &&
+        prop !== '__isResolved'
+      ) {
+        registerContextAsDependent()
+      }
 
       if (prop === secret) {
         return true
       }
-      if (prop === 'toString' && parent().__isBeam) {
+      if (prop === 'toString' && unboxCache().__isBeam) {
         return state?.toString
       }
       if (
@@ -355,7 +365,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
         prop === Symbol.toStringTag ||
         prop === Symbol.toPrimitive
       ) {
-        return unboxCache()
+        return cachedValue
       }
       if (prop === '_setShouldUpdate') {
         return (func) => {
@@ -377,7 +387,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       if (prop === '__isReactive') {
         return true
       }
-      if (parent().__isBeam) {
+      if (init?.__isBeam) {
         if (prop === '__resolve') {
           // internally used when beam tries to resolve.
           const beamResolve = state?.[prop]
@@ -401,7 +411,10 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
           }
         }
       }
-      // const arr = parent()
+      if (prop === '__isResolved' && !init?.__isBeam && !init?.__isRef) {
+        return true
+      }
+      // const arr = unboxCache()
       // console.log('arr', arr)
       // if (Array.isArray(arr)) {
       //   if (prop === 'map') {

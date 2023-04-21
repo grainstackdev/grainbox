@@ -64,7 +64,7 @@ export function ref() {
     }
   })
 
-  const reactiveProxy = reactive(refProxy)
+  const reactiveProxy = reactive(refProxy, 'Ref')
 
   return reactiveProxy
 }

@@ -317,7 +317,7 @@ function context() {
             } else if ('function' === typeof l[k]) {
               l[k](e)
             }
-          } else if (!l[k]?.__isProxy) {
+          } else if (!l[k]?.__isProxy || l[k]?.__isResolved) {
             // If proxy, register dependency:
             const p = l[k]?.__isProxy ? l[k]() : l[k]
             if ('function' === typeof p) {
