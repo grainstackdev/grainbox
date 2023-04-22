@@ -220,7 +220,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     // The microtask will clear out the recorded array so that the next macrotask has a fresh one.
     // todo: Later, microtasks can be used to batch updates.
     if (finishedRecomputes[id]) {
-      console.error('loop detected', place)
+      console.error('Loop', place)
       return
     }
     finishedRecomputes[id] = true
