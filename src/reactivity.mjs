@@ -166,7 +166,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   const recompute: () => any =
     // $FlowFixMe
     typeof init === 'function' ? init : defaultFunction
-  let state = typeof init === 'object' || init.__isProxy ? init : defaultState
+  let state = typeof init === 'object' || init?.__isProxy ? init : defaultState
 
   const observerRegistry = new WeakMap()
   const dependents: Array<CreationContext> = []
@@ -305,6 +305,8 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     const currentValue = isPrimitive(init) ? state.valueOf() : state[prop]
     const updateNeeded = shouldUpdate(currentValue, value)
 
+    const isInputRef = init?.__isRef && init?.__isResolved && init().tagName === 'INPUT' && init().type !== 'image'
+
     if (constraintRecorder && !setterLocked) {
       constraintRecorder(proxy, prop, currentValue)
     }
@@ -331,6 +333,8 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       if (isPrimitive(init)) {
         state = Object(value)
         cachedValue = state.valueOf()
+      } else if (isInputRef) {
+        init().value = value
       } else {
         state[prop] = value
         cachedValue = state
@@ -414,6 +418,9 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       if (prop === '__isResolved' && !init?.__isBeam && !init?.__isRef) {
         return true
       }
+
+      // $FlowFixMe
+      return state?.[prop]
       // const arr = unboxCache()
       // console.log('arr', arr)
       // if (Array.isArray(arr)) {
@@ -462,9 +469,6 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       //     return newProp.bind(arr)
       //   }
       // }
-
-      // $FlowFixMe
-      return state?.[prop]
     },
     set,
     apply(target, thisArg, args) {
