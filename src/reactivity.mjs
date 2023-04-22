@@ -7,6 +7,7 @@ const genSecret = () =>
     .slice(2)
     .map((d) => String.fromCharCode(97 + (parseInt(d) % (122 - 97))))
     .join('')
+// todo: make id generation unique
 const secret = genSecret()
 
 export type CreationContext = {
@@ -23,6 +24,7 @@ type RecomputeContext = {
 
 let creationContexts: Array<CreationContext> = []
 let recomputeContexts: Array<RecomputeContext> = []
+let finishedRecomputes = {}
 
 function isEl(obj) {
   const canUseDOM = !!(
@@ -150,6 +152,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   const name = typeof extra === 'string' ? extra : 'reactive'
   // console.log('name', name)
   const place = new Error(name || 'Reactive')
+  const id = genSecret()
 
   const debounceSettings = extra?.debounce ? extra : null
 
@@ -211,7 +214,25 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   Object.defineProperty(unboxCache, 'name', {value: name})
 
   let onChange = () => {
-    // console.log('onChange in', name)
+    // Each recompute when happens during this macrotask should be recorded, recording the proxy's id.
+    // If a proxy has already been recomputed this macrotask, then onChange is noop.
+    // Microtasks are used to run before the next macrotask.
+    // The microtask will clear out the recorded array so that the next macrotask has a fresh one.
+    // todo: Later, microtasks can be used to batch updates.
+    if (finishedRecomputes[id]) {
+      console.error('loop detected', place)
+      return
+    }
+    finishedRecomputes[id] = true
+    if (Object.keys(finishedRecomputes).length === 1) {
+      // During the current macrotask's execution, if any recompute happens,
+      // a microtask is queued, just once.
+      // See https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide#batching_operations
+      queueMicrotask(() => {
+        finishedRecomputes = {}
+      })
+    }
+
     recomputeContexts.push({ index: 0, creations })
     const nextValue: any = recompute()
     recomputeContexts.pop()
@@ -253,7 +274,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       creations.push(reactiveObj)
     },
     handle: recompute,
-    id: genSecret(),
+    id,
   }
 
   // A createContext is raised when
@@ -305,8 +326,6 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     const currentValue = isPrimitive(init) ? state.valueOf() : state[prop]
     const updateNeeded = shouldUpdate(currentValue, value)
 
-    const isInputRef = init?.__isRef && init?.__isResolved && init().tagName === 'INPUT' && init().type !== 'image'
-
     if (constraintRecorder && !setterLocked) {
       constraintRecorder(proxy, prop, currentValue)
     }
@@ -329,6 +348,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     }
 
     if (updateNeeded) {
+      const isInputRef = init?.__isRef && init?.__isResolved && init().tagName === 'INPUT' && init().type !== 'image'
       // $FlowFixMe
       if (isPrimitive(init)) {
         state = Object(value)
