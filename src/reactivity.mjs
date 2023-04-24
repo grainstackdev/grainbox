@@ -529,9 +529,6 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
               const prevSetterLocked = setterLocked
               setterLocked = false
               if (prevSetterLocked && pendingSets.length) {
-                // todo:
-                //  if it was locked previously,
-                //  then attempt to apply any pending set.
                 const ps = pendingSets.shift()
                 ps[0]()
               }
