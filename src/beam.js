@@ -6,7 +6,8 @@ type BeamConfig = {
   name: string,
   serverUrl: string,
   disableLogger: boolean,
-  headers: {[string]: string}
+  headers: {[string]: string},
+  _loc?: string, // file name and line:col
 }
 
 type Beam = {
@@ -20,6 +21,13 @@ type Beam = {
 }
 
 export function beam(config: BeamConfig): Beam {
+  const error = new Error(config.name || 'Beam')
+  const originatingFile = error.stack.slice(error.stack.lastIndexOf('/') + 1)
+  if (!config.name) {
+    config.name = originatingFile.slice(0, originatingFile.indexOf('.'))
+    config._loc = originatingFile
+  }
+
   // if (!config.name) {
   //   config.name = ''
   // }
@@ -52,7 +60,7 @@ export function beam(config: BeamConfig): Beam {
   }
 
   const makeProxy = (propName: string): Beam => {
-    console.log('new beam proxy', propName)
+    // console.log('new beam proxy', propName)
 
     // When a get is performed, a new proxy node is made.
     // This new node is initially unresolved, so the queryNeeded flag
@@ -224,11 +232,11 @@ async function sendGraphQLQuery(config: BeamConfig, query: any, variables: any):
   if (!config.disableLogger) {
     if (config.name) {
       if (payload.data && !payload.errors) {
-        console.groupCollapsed(`%cQuery`, `color: #489bfd; font-weight: bold;`, config.name)
+        console.groupCollapsed(`%cQuery`, `color: #489bfd; font-weight: bold;`, config._loc || config.name)
       } else if (payload.data && payload.errors) {
-        console.group(`%cQuery`, `color: #f9e124; font-weight: bold;`, config.name)
+        console.group(`%cQuery`, `color: #f9e124; font-weight: bold;`, config._loc || config.name)
       } else if (!payload.data && payload.errors) {
-        console.group(`%cQuery`, `color: #ea2929; font-weight: bold;`, config.name)
+        console.group(`%cQuery`, `color: #ea2929; font-weight: bold;`, config._loc || config.name)
       }
     } else {
       if (payload.data && !payload.errors) {
