@@ -13,7 +13,7 @@ type Beam = {
   (...args: any): Beam,
   [any]: Beam,
   __children: {[string]: Beam},
-  __args: Array<{[string]: any}>,
+  __args: any,
   __resolve: (any) => void,
   __isProxy: true,
   __isBeam: true,
@@ -35,10 +35,35 @@ export function beam(config: BeamConfig): Beam {
   // - Each child which appears in the schema is added to the selection being built.
   // - If a child has .args, then these are added to the selection also.
 
+  let queryNeeded = false
+  let schema
+  const buildSendResolve = async () => {
+    try {
+      if (!schema) {
+        schema = await introspect(config)
+      }
+      const query = constructQuery()
+      const response = await sendQuery(query)
+      hydrateLeafProxies(schema, response)
+      queryNeeded = false
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const makeProxy = (propName: string): Beam => {
-    // console.log('new beam proxy', propName)
+    console.log('new beam proxy', propName)
+
+    // When a get is performed, a new proxy node is made.
+    // This new node is initially unresolved, so the queryNeeded flag
+    // needs to be set. This will cause a single microtask to be queued.
+    if (!queryNeeded) {
+      queryNeeded = true
+      queueMicrotask(buildSendResolve)
+    }
+
     const __children = {}
-    const __args = []
+    let __args
 
     let __resolved = false
     let __value
@@ -88,29 +113,51 @@ export function beam(config: BeamConfig): Beam {
           return __value
         }
 
-        const nextReactiveProxy = makeProxy(prop)
+        /*
+          When server's get trap is called, it is always !__resolved.
+          At this time, only leaf nodes are resolved.
 
-        prevBeamProxy.__children[prop] = nextReactiveProxy
+          Options:
+          - Make a non-leaf node resolved if all of its children are resolved, resolving to an object.
+          - Non-leaf nodes are not resolved, but getting the same prop returns the same proxy.
 
-        return nextReactiveProxy
+        * */
+
+        if (!prevBeamProxy.__children.hasOwnProperty(prop)) {
+          const nextReactiveProxy = makeProxy(prop)
+          prevBeamProxy.__children[prop] = nextReactiveProxy
+          return nextReactiveProxy
+        } else {
+          // already exists
+          return prevBeamProxy.__children[prop]
+        }
       },
       apply(reflect: () => Beam, thisArg, args) {
-        const prevBeamProxy = reflect()
+        // console.log('beam apply', propName)
+        const beamProxy = reflect()
 
         // Examples of when this is called:
         // data.viewer({token: token1})
         // data.viewer({token: token2})
         // data.viewer.users.map(() => {})
 
-        if (__resolved) {
+        // If beam receives new args when it is resolved, then it should requery.
+
+        if (!args.length && __resolved) {
           return __value
         }
 
         if (args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])) {
           // only when args is an object could it be part of a graphql query.
-          prevBeamProxy.__args.push(args[0])
+          if (JSON.stringify(__args) !== JSON.stringify(args[0])) { // deep equals
+            __args = args[0]
+            if (!queryNeeded) {
+              queryNeeded = true
+              queueMicrotask(buildSendResolve)
+            }
+          }
         }
-        return prevBeamProxy // returns the beam proxy
+        return beamProxy // returns the beam proxy
       },
       set(obj, prop, value) {
         throw new Error('Writing to the server via assignment is not supported.')
@@ -155,17 +202,6 @@ export function beam(config: BeamConfig): Beam {
       }
     }
   }
-
-  Promise.resolve().then(async () => {
-    try {
-      const schema = await introspect(config)
-      const query = constructQuery()
-      const response = await sendQuery(query)
-      hydrateLeafProxies(schema, response)
-    } catch (err) {
-      console.error(err)
-    }
-  })
 
   return proxy
 }
@@ -231,27 +267,27 @@ async function sendGraphQLQuery(config: BeamConfig, query: any, variables: any):
 
 async function introspect(config: BeamConfig) {
   const schema = await sendGraphQLQuery(config, `{
-  __schema {
-    types {
-      name
-      kind
-      fields {
+    __schema {
+      types {
         name
-        type {
-          name
-          kind
-        }
-        args {
+        kind
+        fields {
           name
           type {
             name
             kind
           }
+          args {
+            name
+            type {
+              name
+              kind
+            }
+          }
         }
       }
     }
   }
-}
 `)
   return schema
 }
@@ -262,7 +298,7 @@ function getTypeMap(schema) {
     if (type.fields) {
       map[type.name] = map[type.name] || {}
       for (const field of type.fields) {
-        if (field.type.kind === 'SCALAR') {
+        if (field.type.kind !== 'OBJECT') {
           map[type.name][field.name] = 'SCALAR'
         } else {
           map[type.name][field.name] = field.type.name
@@ -286,6 +322,9 @@ function getType(selectionPath, schema) {
   let parentType = 'Query'
   for (const field of keywords) {
     parentType = typeMap[parentType][field]
+    if (parentType === undefined) {
+      throw new Error(`GraphQL selection path 'query.${selectionPath}' does not exist.`)
+    }
 
     if (parentType === 'SCALAR') {
       break
@@ -305,9 +344,9 @@ function getSubQuery(proxy: Beam, indentN: number = 0): string {
     query += innerIndent + key
 
     const value = proxy.__children[key]
-    if (value.__args.length) {
+    if (value.__args) {
       // todo support multiple calls with different args
-      const args = value.__args[0]
+      const args = value.__args
       const argString = Object.keys(args).map(key => `${key}: "${args[key]}"`).join(', ')
       query += `(${argString})`
     }

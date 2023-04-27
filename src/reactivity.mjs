@@ -178,7 +178,6 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   let setterLocked = false
 
   const registerContextAsDependent = () => {
-    // console.log('registerContextAsDependent', name, new Error('as'))
     if (constraintRecorder) {
       return
     }
@@ -196,6 +195,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       // because its state depends on the state of obj being accessed.
 
       if (createCtx) {
+        // console.log('registerContextAsDependent', name, createCtx.name)
         observerRegistry.set(createCtx.handle, true)
         dependents.push(createCtx)
       }
@@ -275,6 +275,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     },
     handle: recompute,
     id,
+    name
   }
 
   // A createContext is raised when
@@ -426,11 +427,12 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
           //  - new reactive proxy when a new leaf is created
           //  - unboxed value when leaf is resolved
           if (value?.__isResolved) {
-            // new leaf
-            // it is wrapped with reactive,
-            return value().__value
-          } else {
             // resolved
+            // Return the value boxed still
+            return value
+          } else {
+            // new leaf
+            // it is wrapped with reactive
             return value
           }
         }
@@ -501,14 +503,14 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
         if (init.__isBeam) {
           // init is a beam proxy
           registerContextAsDependent()
-          const value = init(...args)
-          if (!value.__isResolved) {
+          if (!init.__isResolved) {
             // value is a beam proxy, unboxed once.
-            // In general a beam proxy should never be exposed;
+            // In general a beam proxy should never be exposed.
             // only a reactive proxy or a resolved value.
             return proxy // allows ability to chain listener registration.
           } else {
-            // value is the resolved value, unboxed twice.
+            // the resolved value is unboxed.
+            const value = init(...args)
             return value
           }
         } else if (args.length === 1 && typeof args[0] === 'function') {
@@ -552,6 +554,12 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
           }
           return
         }
+      }
+      if (init.__isBeam) {
+        // init is a beam proxy
+        registerContextAsDependent()
+        // unbox:
+        return init()
       }
       if (init.__isRef) {
         return unboxCache()()
