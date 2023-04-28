@@ -270,9 +270,11 @@ function context() {
       }
 
       const isUnresolvedBeam = l?.__isBeam && !l?.__isResolved
+      const isNullProxy = l?.__isNullProxy === true
 
       if (l == null);
-      else if (isUnresolvedBeam) {
+      else if (isUnresolvedBeam || isNullProxy) {
+        console.log('isNullProxy', isNullProxy)
         if (!e) parseClass('')
         else e.appendChild((r = document.createTextNode('')))
       }

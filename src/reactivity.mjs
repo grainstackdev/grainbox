@@ -373,7 +373,8 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
         prop !== '__isProxy' &&
         prop !== '__isRef' &&
         prop !== '__isBeam' &&
-        prop !== '__isResolved'
+        prop !== '__isResolved' &&
+        prop !== '__isNullProxy'
       ) {
         registerContextAsDependent()
       }
@@ -386,11 +387,15 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
       }
       if (
         prop === 'toString' ||
-        prop === 'valueOf' ||
+        prop === 'valueOf'
+      ) {
+        return cachedValue
+      }
+      if (
         prop === Symbol.toStringTag ||
         prop === Symbol.toPrimitive
       ) {
-        return cachedValue
+        return () => cachedValue
       }
       if (prop === '_setShouldUpdate') {
         return (func) => {

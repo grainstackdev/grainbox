@@ -1,6 +1,7 @@
 // @flow
 
 import {reactive} from './reactivity.mjs'
+import {nullProxy} from './nullProxy.js'
 
 type BeamConfig = {
   name: string,
@@ -45,6 +46,9 @@ export function beam(config: BeamConfig): Beam {
 
   let queryNeeded = false
   let schema
+  Promise.resolve().then(async () => {
+    schema = await introspect(config)
+  })
   const buildSendResolve = async () => {
     try {
       if (!schema) {
@@ -128,7 +132,6 @@ export function beam(config: BeamConfig): Beam {
           Options:
           - Make a non-leaf node resolved if all of its children are resolved, resolving to an object.
           - Non-leaf nodes are not resolved, but getting the same prop returns the same proxy.
-
         * */
 
         if (!prevBeamProxy.__children.hasOwnProperty(prop)) {
@@ -165,6 +168,12 @@ export function beam(config: BeamConfig): Beam {
             }
           }
         }
+
+        if (!args.length && !__resolved) {
+          // unboxing unresolved async proxy returns a null proxy.
+          return nullProxy()
+        }
+
         return beamProxy // returns the beam proxy
       },
       set(obj, prop, value) {

@@ -7,6 +7,7 @@ import { default as _h } from './grainbox-hyperscript.mjs'
 import { beam as _beam } from './beam.js'
 import { ref as _ref } from './ref.js'
 import {constraint as _constraint} from './constraint.js'
+import {nullProxy as _nullProxy} from './nullProxy.js'
 
 export const reactive = _reactive
 export const history = _history
@@ -16,6 +17,7 @@ export const h = _h
 export const beam = _beam
 export const ref = _ref
 export const constraint = _constraint
+export const nullProxy = _nullProxy
 
 export default {
   reactive,
@@ -25,5 +27,6 @@ export default {
   h,
   beam,
   ref,
-  constraint
+  constraint,
+  nullProxy
 }

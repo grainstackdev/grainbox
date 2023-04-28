@@ -1,8 +1,10 @@
 // @flow
 
 import { reactive } from './reactivity.mjs'
+import {nullProxy} from './nullProxy.js'
 
 export function ref() {
+  let initialization = true
   let element
   // When an element is created with a ref, an apply operation is performed
   // first going through the reactive proxy, and then into the ref proxy
@@ -58,13 +60,19 @@ export function ref() {
         if (element) {
           return element
         } else {
-          return refProxy
+          if (initialization) {
+            return refProxy
+          }
+          // unboxing unresolved async proxy returns a null proxy.
+          return nullProxy()
         }
       }
     }
   })
 
   const reactiveProxy = reactive(refProxy, 'Ref')
+
+  initialization = false
 
   return reactiveProxy
 }
