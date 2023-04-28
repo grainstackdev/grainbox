@@ -46,18 +46,21 @@ export function beam(config: BeamConfig): Beam {
 
   let queryNeeded = false
   let schema
-  Promise.resolve().then(async () => {
+  const initPromise = Promise.resolve().then(async () => {
     schema = await introspect(config)
   })
   const buildSendResolve = async () => {
     try {
+      await initPromise
       if (!schema) {
         schema = await introspect(config)
       }
       const query = constructQuery()
+      rootProxy.loading = true
       const response = await sendQuery(query)
       hydrateLeafProxies(schema, response)
       queryNeeded = false
+      rootProxy.loading = false
     } catch (err) {
       console.error(err)
     }
@@ -220,11 +223,18 @@ export function beam(config: BeamConfig): Beam {
     }
   }
 
-  return proxy
+  const rootProxy = reactive({
+    loading: true,
+    data: proxy
+  })
+
+  return rootProxy
 }
 
 async function sendGraphQLQuery(config: BeamConfig, query: any, variables: any): Promise<{data: any}> {
   const startTime = Date.now()
+
+  // todo: check cache
 
   const res = await fetch(config.serverUrl, {
     method: "post",

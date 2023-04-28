@@ -274,7 +274,6 @@ function context() {
 
       if (l == null);
       else if (isUnresolvedBeam || isNullProxy) {
-        console.log('isNullProxy', isNullProxy)
         if (!e) parseClass('')
         else e.appendChild((r = document.createTextNode('')))
       }

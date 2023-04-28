@@ -25,6 +25,7 @@ type RecomputeContext = {
 let creationContexts: Array<CreationContext> = []
 let recomputeContexts: Array<RecomputeContext> = []
 let finishedRecomputes = {}
+let queuedUpdates = {}
 
 function isEl(obj) {
   const canUseDOM = !!(
@@ -149,7 +150,7 @@ export type Reactive<T> = T
 type Extra = string | {debounce: number}
 
 function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
-  const name = typeof extra === 'string' ? extra : 'reactive'
+  const name = typeof extra === 'string' ? extra : 'Reactive'
   // console.log('name', name)
   const place = new Error(name || 'Reactive')
   const id = genSecret()
@@ -214,25 +215,6 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   Object.defineProperty(unboxCache, 'name', {value: name})
 
   let onChange = () => {
-    // Each recompute when happens during this macrotask should be recorded, recording the proxy's id.
-    // If a proxy has already been recomputed this macrotask, then onChange is noop.
-    // Microtasks are used to run before the next macrotask.
-    // The microtask will clear out the recorded array so that the next macrotask has a fresh one.
-    // todo: Later, microtasks can be used to batch updates.
-    if (finishedRecomputes[id]) {
-      console.error('Loop', place)
-      return
-    }
-    finishedRecomputes[id] = true
-    if (Object.keys(finishedRecomputes).length === 1) {
-      // During the current macrotask's execution, if any recompute happens,
-      // a microtask is queued, just once.
-      // See https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide#batching_operations
-      queueMicrotask(() => {
-        finishedRecomputes = {}
-      })
-    }
-
     recomputeContexts.push({ index: 0, creations })
     const nextValue: any = recompute()
     recomputeContexts.pop()
@@ -287,6 +269,16 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   creationContexts.pop()
 
   function updateDependents() {
+    // batching
+    // There may be multiple data sources changing which both cause a common reactive function to recompute.
+    // The recomputed value should then propagate to its own dependents.
+    // If batching is put in place this would cause subsequent recomputes to happen on the next task.
+    // Microtasks might be used to perform these subsequent recomputes soon, rather than being at the back of the task queue.
+    // So to perform batching, instead of calling ctx.onChange(),
+    // queue a microtask that calls ctx.onChange().
+    // If another data source wants to call the same ctx.onChange(),
+    // then it would see that it has already been queued.
+
     // console.log('dependents', dependents)
     // todo
     //   disallow setting within an observer.
@@ -294,10 +286,29 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
     // console.log('dependents', dependents)
     for (const ctx of dependents) {
       // Whenever there is a change, notify dependents.
-      // todo: batch updates
-      //   Allow set to be called multiple times before callbacks are called.
-      // console.log('calling dep from', name, place)
-      ctx.onChange()
+      // Updates to a ctx are batched.
+      if (!queuedUpdates[ctx.id]) {
+        queuedUpdates[ctx.id] = true
+        queueMicrotask(() => {
+          delete queuedUpdates[ctx.id]
+          if (finishedRecomputes[ctx.id]) {
+            console.error('Loop', place)
+            return
+          }
+          ctx.onChange()
+          finishedRecomputes[ctx.id] = true
+        })
+        // A microtask to clean up should always be the last to run.
+        queueMicrotask(() => {
+          if (Object.keys(queuedUpdates).length) {
+            // another microtask has been queued,
+            // so since this isn't the last
+            // do not run.
+            return
+          }
+          finishedRecomputes = {}
+        })
+      }
     }
   }
 
