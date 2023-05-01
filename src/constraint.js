@@ -40,7 +40,12 @@ export function constraint(predicate, setter, unsetter, name) {
   }
 
   reactive(() => {
-    if (predicate() && !activated) {
+    const p = predicate()
+    if (p === activated) {
+      // no change
+      return
+    }
+    if (p) {
       activated = true
       cleanupCommands = []
       setConstraintRecorder(record)
@@ -56,7 +61,7 @@ export function constraint(predicate, setter, unsetter, name) {
       setConstraintRecorder(null)
       setConstraintTrace(null)
       lock()
-    } else if (activated) {
+    } else {
       activated = false
       unlock()
       restore()
