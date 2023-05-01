@@ -147,7 +147,7 @@ const debounce = (func, timeout) => {
 //   ...T
 // }
 export type Reactive<T> = T
-type Extra = string | {debounce: number}
+type Extra = string | {debounce: number} | {timeout: number}
 
 function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   const name = typeof extra === 'string' ? extra : 'Reactive'
@@ -156,6 +156,7 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   const id = genSecret()
 
   const debounceSettings = extra?.debounce ? extra : null
+  const timeoutSettings = extra?.timeout || extra?.timeout === 0 ? extra : null
 
   const isR = isReactive(init)
   if (isR) {
@@ -248,6 +249,12 @@ function reactive<T>(init: T, extra?: ?Extra): Reactive<T> {
   }
   if (debounceSettings) {
     onChange = debounce(onChange, debounceSettings.debounce)
+  }
+  if (timeoutSettings) {
+    const oc = onChange
+    onChange = () => {
+      setTimeout(oc, timeoutSettings.timeout)
+    }
   }
 
   const createContext: CreationContext = {
