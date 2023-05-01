@@ -40,7 +40,7 @@ export function constraint(predicate, setter, unsetter, name) {
   }
 
   reactive(() => {
-    const p = predicate()
+    const p = !!predicate()
     if (p === activated) {
       // no change
       return
