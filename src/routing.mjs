@@ -80,16 +80,18 @@ reactive(() => {
     while (root.lastElementChild) {
       root.removeChild(root.lastElementChild)
     }
-    if (page.__isReactive) {
+    if (page?.__isReactive) {
       // Unboxing causes listener registration.
       // However, the only things which should cause this function to recompute
       // are history changes, and changes to the route registry.
       // If a page/component were to cause this function to recompute,
       // it would re-import, removeChild, and then appendChild
       // which is slower than a single replaceWith.
-      console.error('A value boxed by reactive cannot be mounted. Try exporting the unboxed value instead. Use the "()" operator to unbox values.')
+      // console.error('A value boxed by reactive cannot be mounted. Try exporting the unboxed value instead. Use the "()" operator to unbox values.')
+      root.appendChild(page(() => ({noRegister: true})))
+    } else {
+      root.appendChild(page)
     }
-    root.appendChild(page)
     // page.onMount()
   })
 })
