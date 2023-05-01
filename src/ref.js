@@ -5,6 +5,7 @@ import {nullProxy} from './nullProxy.js'
 
 export function ref() {
   let initialization = true
+  let focus = false
   let element
   // When an element is created with a ref, an apply operation is performed
   // first going through the reactive proxy, and then into the ref proxy
@@ -35,6 +36,17 @@ export function ref() {
       })
     }
 
+    if (element) {
+      registerEvent('focus', (e) => {
+        focus = true
+        reactiveProxy.__updateDependents()
+      })
+      registerEvent('blur', (e) => {
+        focus = false
+        reactiveProxy.__updateDependents()
+      })
+    }
+
     // refProxy must be returned for reactive initialization.
     return element
   }
@@ -50,6 +62,9 @@ export function ref() {
       }
 
       if (element) {
+        if (prop === 'hasFocus') {
+          return () => focus
+        }
         return element[prop]
       }
     },
