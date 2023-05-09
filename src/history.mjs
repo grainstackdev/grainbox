@@ -2,7 +2,7 @@
 
 import 'history-events'
 import * as qss from 'qss'
-import { reactive } from './reactivity.mjs'
+import { reactive } from './reactive.mjs'
 
 const w = await (typeof window === 'undefined' ? import('html-element') : Promise.resolve(window))
 

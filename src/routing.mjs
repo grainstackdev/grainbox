@@ -2,7 +2,7 @@
 
 import { parse as regexparam } from 'regexparam'
 import { history } from './history.mjs'
-import { reactive } from './reactivity.mjs'
+import { reactive } from './reactive.mjs'
 
 export type Page = HTMLElement
 

@@ -1,5 +1,5 @@
 // @flow
-import { reactive as _reactive } from './reactivity.mjs'
+import { reactive as _reactive } from './reactive.mjs'
 import { history as _history } from './history.mjs'
 import { registerRoute as _registerRoute } from './routing.mjs'
 import { default as _html } from './html-tag.mjs'

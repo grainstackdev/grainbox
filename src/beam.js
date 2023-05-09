@@ -1,6 +1,6 @@
 // @flow
 
-import {reactive} from './reactivity.mjs'
+import {reactive} from './reactive.mjs'
 import {nullProxy} from './nullProxy.js'
 
 type BeamConfig = {

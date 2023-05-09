@@ -30,9 +30,9 @@
       "node": "./dist/esm/index.mjs",
       "default": "./dist/cdn/index.mjs"
     },
-    "./reactivity": {
-      "node": "./dist/esm/reactivity.mjs",
-      "default": "./dist/cdn/reactivity.mjs"
+    "./reactive": {
+      "node": "./dist/esm/reactive.mjs",
+      "default": "./dist/cdn/reactive.mjs"
     },
     "./history": {
       "node": "./dist/esm/history.mjs",

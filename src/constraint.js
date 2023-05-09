@@ -1,6 +1,6 @@
 // @flow
 
-import {reactive, setConstraintRecorder, setConstraintTrace} from './reactivity.mjs'
+import {reactive, setConstraintRecorder, setConstraintTrace} from './reactive.mjs'
 
 // When the predicate becomes true,
 // a constraint callback is setup,

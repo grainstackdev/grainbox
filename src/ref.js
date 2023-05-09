@@ -1,7 +1,22 @@
 // @flow
 
-import { reactive } from './reactivity.mjs'
+import { reactive } from './reactive.mjs'
 import {nullProxy} from './nullProxy.js'
+
+// todo:
+//  error when assigned to more than one element.
+
+// todo: Like in surplus, prop changes on ref cause
+// const addButton = ref({
+//   onClick: handleClick
+// })
+//
+// reactive(() => (
+//   <addButton>+</addButton>
+// ))
+//
+// delete addButton.onClick
+// addButton.style = {}
 
 export function ref() {
   let initialization = true
